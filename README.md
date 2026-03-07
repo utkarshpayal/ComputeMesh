@@ -41,8 +41,7 @@ Providers earn rewards based on compute runtime and resource usage.
 
 # System Architecture
 
-<img width="472" height="1484" alt="mermaid-diagram" src="https://github.com/user-attachments/assets/f90c9a4d-a547-4e0e-a78a-2dce6878e940" />
-
+<img width="236" height="742" alt="mermaid-diagram" src="https://github.com/user-attachments/assets/f90c9a4d-a547-4e0e-a78a-2dce6878e940" />
 
 ---
 
@@ -120,28 +119,6 @@ Networking
 Frontend
 - React
 - TailwindCSS
-
----
-
-# Repository Structure
-
-computemesh/
-│
-├ docs
-│   ├ architecture.md
-│   └ development-roadmap.md
-│
-├ backend
-│   ├ api-gateway
-│   ├ scheduler
-│   ├ session-manager
-│   └ billing-service
-│
-├ node-agent
-│
-├ frontend
-│
-└ README.md
 
 ---
 
