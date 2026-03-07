@@ -41,21 +41,8 @@ Providers earn rewards based on compute runtime and resource usage.
 
 # System Architecture
 
-User Interface (React)
-        ↓
-API Gateway
-        ↓
-Scheduler Service
-        ↓
-Session Manager
-        ↓
-Node Registry
-        ↓
-Provider Node Agents
-        ↓
-Docker Containers
-        ↓
-P2P Networking Layer
+<img width="472" height="1484" alt="mermaid-diagram" src="https://github.com/user-attachments/assets/f90c9a4d-a547-4e0e-a78a-2dce6878e940" />
+
 
 ---
 
