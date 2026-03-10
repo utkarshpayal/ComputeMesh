@@ -1,51 +1,123 @@
+# version: 0.2
+
+# phases:
+#   install:
+#     runtime-versions:
+#       nodejs: 20
+#     commands:
+#       - echo "Installing dependencies"
+#       - apt-get update -y
+#       - apt-get install -y openssh-client
+
+#   pre_build:
+#     commands:
+#       - echo "Setting up SSH key"
+#       - echo "$DEPLOY_KEY" > deploy_key
+#       - chmod 600 deploy_key
+
+#       - echo "Adding EC2 to known hosts"
+#       - mkdir -p ~/.ssh
+#       - ssh-keyscan -H 13.201.129.101 >> ~/.ssh/known_hosts
+
+#   build:
+#     commands:
+#       - echo "Starting deployment on EC2"
+#       - |
+#         ssh -i deploy_key ubuntu@13.201.129.101 << 'EOF'
+#           set -e
+
+#           echo "Navigating to project directory"
+#           cd ~/ComputeMesh
+
+#           echo "Pulling latest code"
+#           git pull origin main
+
+#           echo "Stopping old container"
+#           docker stop computemesh || true
+#           docker rm computemesh || true
+
+#           echo "Building new Docker image"
+#           docker build -t computemesh-backend .
+
+#           echo "Starting new container"
+#           docker run -d \
+#             --restart always \
+#             -p 5000:5000 \
+#             --env-file .env \
+#             --name computemesh 
+#           echo "Deployment finished"
+#         EOF
+
+# artifacts:
+#   files:
+#     - '**/*'
+
+
+
+
 version: 0.2
+
+env:
+  variables:
+    AWS_DEFAULT_REGION: ap-south-1
+    AWS_ACCOUNT_ID: 740726746628
+    ImageName: simple-docker-service
 
 phases:
   install:
-    runtime-versions:
-      nodejs: 20
     commands:
-      - echo "Installing dependencies"
+      - echo Installing dependencies
       - apt-get update -y
       - apt-get install -y openssh-client
 
   pre_build:
     commands:
-      - echo "Setting up SSH key"
+      - echo Logging in to Amazon ECR
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+
+      - echo Setting up SSH key
       - echo "$DEPLOY_KEY" > deploy_key
       - chmod 600 deploy_key
 
-      - echo "Adding EC2 to known hosts"
       - mkdir -p ~/.ssh
       - ssh-keyscan -H 13.201.129.101 >> ~/.ssh/known_hosts
 
   build:
     commands:
-      - echo "Starting deployment on EC2"
+      - echo Building Docker image
+      - docker build -t $ImageName .
+
+      - echo Tagging Docker image
+      - docker tag $ImageName:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ImageName:latest
+
+  post_build:
+    commands:
+      - echo Pushing image to ECR
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ImageName:latest
+
+      - echo Deploying container on EC2
       - |
         ssh -i deploy_key ubuntu@13.201.129.101 << 'EOF'
           set -e
 
-          echo "Navigating to project directory"
-          cd ~/ComputeMesh
+          echo Logging into ECR
+          aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 740726746628.dkr.ecr.ap-south-1.amazonaws.com
 
-          echo "Pulling latest code"
-          git pull origin main
+          echo Pulling latest image
+          docker pull 740726746628.dkr.ecr.ap-south-1.amazonaws.com/simple-docker-service:latest
 
-          echo "Stopping old container"
+          echo Stopping old container
           docker stop computemesh || true
           docker rm computemesh || true
 
-          echo "Building new Docker image"
-          docker build -t computemesh-backend .
-
-          echo "Starting new container"
+          echo Starting new container
           docker run -d \
             --restart always \
             -p 5000:5000 \
-            --env-file .env \
-            --name computemesh 
-          echo "Deployment finished"
+            --name computemesh \
+            740726746628.dkr.ecr.ap-south-1.amazonaws.com/simple-docker-service:latest
+
+          echo Deployment complete
         EOF
 
 artifacts:
