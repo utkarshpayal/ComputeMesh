@@ -18,7 +18,7 @@ app.use(express.json());
 app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({
     status: "ok",
-    message: "Server running after deployment",
+    message: "Server running after deployment fix",
   });
 });
 
