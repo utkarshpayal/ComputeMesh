@@ -2,9 +2,9 @@ version: 0.2
 
 env:
   variables:
-    AWS_DEFAULT_REGION: ap-south-1
-    AWS_ACCOUNT_ID: 740726746628
     IMAGE_NAME: computemesh-backend
+    EC2_HOST: 13.201.129.101
+    EC2_USER: ubuntu
 
 phases:
   install:
@@ -15,48 +15,46 @@ phases:
 
   pre_build:
     commands:
-      - echo Logging in to Amazon ECR
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-
       - echo Setting up SSH key
       - echo "$DEPLOY_KEY" > deploy_key
       - chmod 600 deploy_key
 
       - mkdir -p ~/.ssh
-      - ssh-keyscan -H 13.201.129.101 >> ~/.ssh/known_hosts
+      - ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts
 
   build:
     commands:
       - echo Building Docker image
       - docker build -t $IMAGE_NAME .
 
-      - echo Tagging Docker image
-      - docker tag $IMAGE_NAME:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_NAME:latest
+      - echo Saving Docker image
+      - docker save $IMAGE_NAME > image.tar
 
   post_build:
     commands:
-      - echo Pushing image to ECR
-      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_NAME:latest
+      - echo Copying image to EC2
+      - scp -o StrictHostKeyChecking=no -i deploy_key image.tar $EC2_USER@$EC2_HOST:/home/ubuntu/
 
-      - echo Deploying container on EC2
+      - echo Running container on EC2
       - |
-        ssh -o StrictHostKeyChecking=no -i deploy_key ubuntu@13.201.129.101 << 'EOF'
+        ssh -o StrictHostKeyChecking=no -i deploy_key $EC2_USER@$EC2_HOST << EOF
           set -e
 
-          aws ecr get-login-password --region ap-south-1 \
-          | docker login --username AWS \
-          --password-stdin 740726746628.dkr.ecr.ap-south-1.amazonaws.com
+          echo "Loading Docker image"
+          docker load < image.tar
 
-          docker pull 740726746628.dkr.ecr.ap-south-1.amazonaws.com/computemesh-backend:latest
-
+          echo "Stopping old container"
           docker stop computemesh || true
           docker rm computemesh || true
 
+          echo "Starting new container"
           docker run -d \
             --restart always \
             -p 5000:5000 \
             --name computemesh \
-            740726746628.dkr.ecr.ap-south-1.amazonaws.com/computemesh-backend:latest
+            computemesh-backend
+
+          rm image.tar
         EOF
 
 artifacts:
