@@ -11,20 +11,20 @@ phases:
   install:
     commands:
       - apt-get update -y
-      - apt-get install -y openssh-client
+      - apt-get install -y openssh-client jq
 
   pre_build:
     commands:
+      - echo "Fetching secrets from Secrets Manager"
+      - aws secretsmanager get-secret-value --secret-id DEPLOY_KEY --query SecretString --output text > secrets.json
+
+      - export DOCKERHUB_USERNAME=$(jq -r '.DOCKERHUB_USERNAME' secrets.json)
+      - export DOCKERHUB_PASSWORD=$(jq -r '.DOCKERHUB_PASSWORD' secrets.json)
+      - export DEPLOY_KEY=$(jq -r '.DEPLOY_KEY' secrets.json)
+
       - echo "DockerHub login"
       - echo $DOCKERHUB_PASSWORD | docker login -u $DOCKERHUB_USERNAME --password-stdin
 
-      - echo "Disable buildkit"
-      - export DOCKER_BUILDKIT=0
-
-      - echo "Pull base image"
-      - docker pull node:20-alpine
-
-      - echo "Setup SSH key"
       - echo "$DEPLOY_KEY" > deploy_key
       - chmod 600 deploy_key
 
@@ -33,10 +33,15 @@ phases:
 
   build:
     commands:
-      - echo "Building Docker image"
+      - echo "Disable BuildKit"
+      - export DOCKER_BUILDKIT=0
+
+      - echo "Pull base image"
+      - docker pull node:20-alpine
+
+      - echo "Build Docker image"
       - docker build -t $IMAGE_NAME .
 
-      - echo "Saving Docker image"
       - docker save $IMAGE_NAME > image.tar
 
   post_build:
@@ -44,11 +49,9 @@ phases:
       - echo "Copy image to EC2"
       - scp -o StrictHostKeyChecking=no -i deploy_key image.tar $EC2_USER@$EC2_HOST:/home/ubuntu/
 
-      - echo "Deploy container"
       - |
         ssh -o StrictHostKeyChecking=no -i deploy_key $EC2_USER@$EC2_HOST << EOF
         docker load < image.tar
-
         docker stop computemesh || true
         docker rm computemesh || true
 
