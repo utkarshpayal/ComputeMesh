@@ -18,7 +18,7 @@ phases:
       - echo Logging into DockerHub
       - echo $DOCKERHUB_PASSWORD | docker login -u $DOCKERHUB_USERNAME --password-stdin
 
-      - echo Pulling base image to avoid rate limit
+      - echo Pulling base image
       - docker pull node:20-alpine
 
       - echo Setting up SSH key
@@ -42,16 +42,19 @@ phases:
       - echo Copying image to EC2
       - scp -o StrictHostKeyChecking=no -i deploy_key image.tar $EC2_USER@$EC2_HOST:/home/ubuntu/
 
-      - echo Running container on EC2
+      - echo Deploying container on EC2
       - |
         ssh -o StrictHostKeyChecking=no -i deploy_key $EC2_USER@$EC2_HOST << EOF
           set -e
 
+          echo "Loading Docker image"
           docker load < image.tar
 
+          echo "Stopping old container"
           docker stop computemesh || true
           docker rm computemesh || true
 
+          echo "Starting container"
           docker run -d \
             --restart always \
             -p 5000:5000 \
@@ -60,3 +63,7 @@ phases:
 
           rm image.tar
         EOF
+
+artifacts:
+  files:
+    - '**/*'
