@@ -61,7 +61,7 @@ env:
   variables:
     AWS_DEFAULT_REGION: ap-south-1
     AWS_ACCOUNT_ID: 740726746628
-    ImageName: simple-docker-service
+    ImageName: computemesh-backend
 
 phases:
   install:
@@ -104,7 +104,7 @@ phases:
           aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 740726746628.dkr.ecr.ap-south-1.amazonaws.com
 
           echo Pulling latest image
-          docker pull 740726746628.dkr.ecr.ap-south-1.amazonaws.com/simple-docker-service:latest
+          docker pull 740726746628.dkr.ecr.ap-south-1.amazonaws.com/computemesh-backend:latest
 
           echo Stopping old container
           docker stop computemesh || true
@@ -115,7 +115,7 @@ phases:
             --restart always \
             -p 5000:5000 \
             --name computemesh \
-            740726746628.dkr.ecr.ap-south-1.amazonaws.com/simple-docker-service:latest
+            740726746628.dkr.ecr.ap-south-1.amazonaws.com/computemesh-backend:latest
 
           echo Deployment complete
         EOF
