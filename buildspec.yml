@@ -1,4 +1,3 @@
-
 version: 0.2
 
 env:
@@ -29,7 +28,7 @@ phases:
   build:
     commands:
       - echo Building Docker image
-      - docker build -t $IMAGE_NAME . 
+      - docker build -t $IMAGE_NAME .
 
       - echo Tagging Docker image
       - docker tag $IMAGE_NAME:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_NAME:latest
@@ -44,24 +43,20 @@ phases:
         ssh -o StrictHostKeyChecking=no -i deploy_key ubuntu@13.201.129.101 << 'EOF'
           set -e
 
-          echo Logging into ECR
-          aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 740726746628.dkr.ecr.ap-south-1.amazonaws.com
+          aws ecr get-login-password --region ap-south-1 \
+          | docker login --username AWS \
+          --password-stdin 740726746628.dkr.ecr.ap-south-1.amazonaws.com
 
-          echo Pulling latest image
           docker pull 740726746628.dkr.ecr.ap-south-1.amazonaws.com/computemesh-backend:latest
 
-          echo Stopping old container
           docker stop computemesh || true
           docker rm computemesh || true
 
-          echo Starting new container
           docker run -d \
             --restart always \
             -p 5000:5000 \
             --name computemesh \
             740726746628.dkr.ecr.ap-south-1.amazonaws.com/computemesh-backend:latest
-
-          echo Deployment complete
         EOF
 
 artifacts:
