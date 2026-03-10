@@ -7,22 +7,25 @@ env:
     EC2_USER: ubuntu
 
 phases:
+
   install:
     commands:
-      - echo Installing dependencies
       - apt-get update -y
       - apt-get install -y openssh-client
 
   pre_build:
     commands:
-      - echo Logging into DockerHub
+      - echo "DockerHub login"
       - echo $DOCKERHUB_PASSWORD | docker login -u $DOCKERHUB_USERNAME --password-stdin
 
-      - echo Pulling base image
+      - echo "Disable buildkit"
+      - export DOCKER_BUILDKIT=0
+
+      - echo "Pull base image"
       - docker pull node:20-alpine
 
-      - echo Fetching SSH key from Secrets Manager
-      - aws secretsmanager get-secret-value --secret-id DEPLOY_KEY --query SecretString --output text > deploy_key
+      - echo "Setup SSH key"
+      - echo "$DEPLOY_KEY" > deploy_key
       - chmod 600 deploy_key
 
       - mkdir -p ~/.ssh
@@ -30,37 +33,30 @@ phases:
 
   build:
     commands:
-      - echo Building Docker image
-      - export DOCKER_BUILDKIT=0
+      - echo "Building Docker image"
       - docker build -t $IMAGE_NAME .
 
-      - echo Saving Docker image
+      - echo "Saving Docker image"
       - docker save $IMAGE_NAME > image.tar
 
   post_build:
     commands:
-      - echo Copying image to EC2
+      - echo "Copy image to EC2"
       - scp -o StrictHostKeyChecking=no -i deploy_key image.tar $EC2_USER@$EC2_HOST:/home/ubuntu/
 
-      - echo Deploying container on EC2
+      - echo "Deploy container"
       - |
         ssh -o StrictHostKeyChecking=no -i deploy_key $EC2_USER@$EC2_HOST << EOF
-          set -e
+        docker load < image.tar
 
-          docker load < image.tar
+        docker stop computemesh || true
+        docker rm computemesh || true
 
-          docker stop computemesh || true
-          docker rm computemesh || true
+        docker run -d \
+          --restart always \
+          -p 5000:5000 \
+          --name computemesh \
+          computemesh-backend
 
-          docker run -d \
-            --restart always \
-            -p 5000:5000 \
-            --name computemesh \
-            computemesh-backend
-
-          rm image.tar
+        rm image.tar
         EOF
-
-artifacts:
-  files:
-    - '**/*'
