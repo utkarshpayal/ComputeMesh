@@ -1,59 +1,3 @@
-# version: 0.2
-
-# phases:
-#   install:
-#     runtime-versions:
-#       nodejs: 20
-#     commands:
-#       - echo "Installing dependencies"
-#       - apt-get update -y
-#       - apt-get install -y openssh-client
-
-#   pre_build:
-#     commands:
-#       - echo "Setting up SSH key"
-#       - echo "$DEPLOY_KEY" > deploy_key
-#       - chmod 600 deploy_key
-
-#       - echo "Adding EC2 to known hosts"
-#       - mkdir -p ~/.ssh
-#       - ssh-keyscan -H 13.201.129.101 >> ~/.ssh/known_hosts
-
-#   build:
-#     commands:
-#       - echo "Starting deployment on EC2"
-#       - |
-#         ssh -i deploy_key ubuntu@13.201.129.101 << 'EOF'
-#           set -e
-
-#           echo "Navigating to project directory"
-#           cd ~/ComputeMesh
-
-#           echo "Pulling latest code"
-#           git pull origin main
-
-#           echo "Stopping old container"
-#           docker stop computemesh || true
-#           docker rm computemesh || true
-
-#           echo "Building new Docker image"
-#           docker build -t computemesh-backend .
-
-#           echo "Starting new container"
-#           docker run -d \
-#             --restart always \
-#             -p 5000:5000 \
-#             --env-file .env \
-#             --name computemesh 
-#           echo "Deployment finished"
-#         EOF
-
-# artifacts:
-#   files:
-#     - '**/*'
-
-
-
 
 version: 0.2
 
@@ -85,7 +29,7 @@ phases:
   build:
     commands:
       - echo Building Docker image
-      - docker build -t $IMAGE_NAME . .
+      - docker build -t $IMAGE_NAME . 
 
       - echo Tagging Docker image
       - docker tag $IMAGE_NAME:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_NAME:latest
@@ -97,7 +41,7 @@ phases:
 
       - echo Deploying container on EC2
       - |
-        ssh -i deploy_key ubuntu@13.201.129.101 << 'EOF'
+        ssh -o StrictHostKeyChecking=no -i deploy_key ubuntu@13.201.129.101 << 'EOF'
           set -e
 
           echo Logging into ECR
