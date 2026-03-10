@@ -61,7 +61,7 @@ env:
   variables:
     AWS_DEFAULT_REGION: ap-south-1
     AWS_ACCOUNT_ID: 740726746628
-    ImageName: computemesh-backend
+    IMAGE_NAME: computemesh-backend
 
 phases:
   install:
@@ -85,15 +85,15 @@ phases:
   build:
     commands:
       - echo Building Docker image
-      - docker build -t $ImageName .
+      - docker build -t $IMAGE_NAME . .
 
       - echo Tagging Docker image
-      - docker tag $ImageName:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ImageName:latest
+      - docker tag $IMAGE_NAME:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_NAME:latest
 
   post_build:
     commands:
       - echo Pushing image to ECR
-      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ImageName:latest
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_NAME:latest
 
       - echo Deploying container on EC2
       - |
