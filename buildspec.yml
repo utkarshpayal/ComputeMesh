@@ -18,11 +18,11 @@ phases:
       - echo Logging into DockerHub
       - echo $DOCKERHUB_PASSWORD | docker login -u $DOCKERHUB_USERNAME --password-stdin
 
-      - echo Pulling base image to avoid rate limit
+      - echo Pulling base image
       - docker pull node:20-alpine
 
-      - echo Setting up SSH key
-      - echo "$DEPLOY_KEY" > deploy_key
+      - echo Fetching SSH key from Secrets Manager
+      - aws secretsmanager get-secret-value --secret-id DEPLOY_KEY --query SecretString --output text > deploy_key
       - chmod 600 deploy_key
 
       - mkdir -p ~/.ssh
@@ -42,7 +42,7 @@ phases:
       - echo Copying image to EC2
       - scp -o StrictHostKeyChecking=no -i deploy_key image.tar $EC2_USER@$EC2_HOST:/home/ubuntu/
 
-      - echo Running container on EC2
+      - echo Deploying container on EC2
       - |
         ssh -o StrictHostKeyChecking=no -i deploy_key $EC2_USER@$EC2_HOST << EOF
           set -e
@@ -60,3 +60,7 @@ phases:
 
           rm image.tar
         EOF
+
+artifacts:
+  files:
+    - '**/*'
