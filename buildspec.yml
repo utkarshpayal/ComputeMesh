@@ -4,13 +4,19 @@ phases:
   install:
     runtime-versions:
       nodejs: 20
+    commands:
+      - echo "Installing dependencies"
+      - npm install
+
   build:
     commands:
-      - echo "Packaging application for deployment..."
-      - chmod +x scripts/stop_container.sh
-      - chmod +x scripts/start_container.sh
+      - echo "Building TypeScript"
+      - npm run build
+
+  post_build:
+    commands:
+      - echo "Build finished"
 
 artifacts:
   files:
     - '**/*'
-  discard-paths: no
