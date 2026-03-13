@@ -3,7 +3,7 @@ os: linux
 
 files:
   - source: /
-    destination: /home/ubuntu/app
+    destination: /home/ubuntu/computemesh-backend
 
 hooks:
 
@@ -12,34 +12,34 @@ hooks:
       timeout: 300
       runas: ubuntu
       commands:
-        - echo "Stopping existing container"
-        - docker stop computemesh-be || true
-        - docker rm computemesh-be || true
+        - echo "Stopping existing backend"
+        - pm2 delete computemesh-be || true
 
   BeforeInstall:
     - location: /
       timeout: 300
       runas: ubuntu
       commands:
-        - echo "Moving docker image"
-        - mv /home/ubuntu/app/computemesh-be.tar /home/ubuntu/computemesh-be.tar || true
+        - echo "Cleaning old deployment"
+        - rm -rf /home/ubuntu/computemesh-backend/*
 
   AfterInstall:
     - location: /
       timeout: 300
       runas: ubuntu
       commands:
-        - echo "Loading docker image"
-        - docker load -i /home/ubuntu/computemesh-be.tar
+        - echo "Installing dependencies"
+        - cd /home/ubuntu/computemesh-backend
+        - npm install
+        - echo "Building TypeScript"
+        - npm run build
 
   ApplicationStart:
     - location: /
       timeout: 300
       runas: ubuntu
       commands:
-        - echo "Starting container"
-        - docker run -d \
-          --name computemesh-be \
-          -p 5000:5000 \
-          --restart always \
-          computemesh-be:latest
+        - echo "Starting backend"
+        - cd /home/ubuntu/computemesh-backend
+        - pm2 start dist/server.js --name computemesh-be || pm2 restart computemesh-be
+        - pm2 save
