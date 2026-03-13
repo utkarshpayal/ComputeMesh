@@ -1,45 +1,75 @@
+# version: 0.0
+# os: linux
+
+# files:
+#   - source: /
+#     destination: /home/ubuntu/computemesh-backend
+
+# hooks:
+
+#   ApplicationStop:
+#     - location: /
+#       timeout: 300
+#       runas: ubuntu
+#       commands:
+#         - echo "Stopping existing backend"
+#         - pm2 delete computemesh-be || true
+
+#   BeforeInstall:
+#     - location: /
+#       timeout: 300
+#       runas: ubuntu
+#       commands:
+#         - echo "Cleaning old deployment"
+#         - rm -rf /home/ubuntu/computemesh-backend/*
+
+#   AfterInstall:
+#     - location: /
+#       timeout: 300
+#       runas: ubuntu
+#       commands:
+#         - echo "Installing dependencies"
+#         - cd /home/ubuntu/computemesh-backend
+#         - npm install
+#         - echo "Building TypeScript"
+#         - npm run build
+
+#   ApplicationStart:
+#     - location: /
+#       timeout: 300
+#       runas: ubuntu
+#       commands:
+#         - echo "Starting backend"
+#         - cd /home/ubuntu/computemesh-backend
+#         - pm2 start dist/server.js --name computemesh-be || pm2 restart computemesh-be
+#         - pm2 save
+
+
 version: 0.0
 os: linux
 
 files:
-  - source: /
+  - source: /  # Assuming the deployment package is the whole root.
     destination: /home/ubuntu/computemesh-backend
 
 hooks:
 
   ApplicationStop:
-    - location: /
+    - location: scripts/application_stop.sh  # Correct script path
       timeout: 300
       runas: ubuntu
-      commands:
-        - echo "Stopping existing backend"
-        - pm2 delete computemesh-be || true
 
   BeforeInstall:
-    - location: /
+    - location: scripts/before_install.sh  # Correct script path
       timeout: 300
       runas: ubuntu
-      commands:
-        - echo "Cleaning old deployment"
-        - rm -rf /home/ubuntu/computemesh-backend/*
 
   AfterInstall:
-    - location: /
+    - location: scripts/after_install.sh  # Correct script path
       timeout: 300
       runas: ubuntu
-      commands:
-        - echo "Installing dependencies"
-        - cd /home/ubuntu/computemesh-backend
-        - npm install
-        - echo "Building TypeScript"
-        - npm run build
 
   ApplicationStart:
-    - location: /
+    - location: scripts/application_start.sh  # Correct script path
       timeout: 300
       runas: ubuntu
-      commands:
-        - echo "Starting backend"
-        - cd /home/ubuntu/computemesh-backend
-        - pm2 start dist/server.js --name computemesh-be || pm2 restart computemesh-be
-        - pm2 save
