@@ -3,15 +3,43 @@ os: linux
 
 files:
   - source: /
-    destination: /home/ubuntu
+    destination: /home/ubuntu/app
 
 hooks:
+
   ApplicationStop:
-    - location: scripts/stop_container.sh
-      timeout: 60
-      runas: root
+    - location: /
+      timeout: 300
+      runas: ubuntu
+      commands:
+        - echo "Stopping existing container"
+        - docker stop computemesh-be || true
+        - docker rm computemesh-be || true
+
+  BeforeInstall:
+    - location: /
+      timeout: 300
+      runas: ubuntu
+      commands:
+        - echo "Moving docker image"
+        - mv /home/ubuntu/app/computemesh-be.tar /home/ubuntu/computemesh-be.tar || true
 
   AfterInstall:
-    - location: scripts/start_container.sh
+    - location: /
       timeout: 300
-      runas: root
+      runas: ubuntu
+      commands:
+        - echo "Loading docker image"
+        - docker load -i /home/ubuntu/computemesh-be.tar
+
+  ApplicationStart:
+    - location: /
+      timeout: 300
+      runas: ubuntu
+      commands:
+        - echo "Starting container"
+        - docker run -d \
+          --name computemesh-be \
+          -p 5000:5000 \
+          --restart always \
+          computemesh-be:latest
