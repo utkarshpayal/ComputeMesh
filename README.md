@@ -1,148 +1,133 @@
-
 # ComputeMesh
 
-ComputeMesh is a peer-to-peer distributed compute platform that enables users to execute workloads on remote machines contributed by providers.
+ComputeMesh is a peer-to-peer distributed compute platform in which providers contribute CPU/GPU machines and users run workloads on them inside isolated Docker containers.
 
-The platform allows providers to share CPU/GPU resources while users can start compute sessions, run workloads inside isolated containers, and interact with them through a real-time terminal or web interface.
-
-ComputeMesh demonstrates infrastructure engineering concepts such as distributed scheduling, container orchestration, peer-to-peer networking, and edge compute resource sharing.
+This repository contains the **backend API** (`computemesh-backend`): a TypeScript Express service backed by MongoDB that handles user accounts, provider and node registration, node heartbeats, and GPU-based job scheduling. The node agent, P2P transport, session manager, billing and frontend described in the vision below are **not implemented in this repo yet** — see [`architecture.md`](architecture.md) and [`development-roadmap.md`](development-roadmap.md) for the plan.
 
 ---
 
-# Project Vision
+## Project vision
 
-The goal of ComputeMesh is to create a distributed compute network where machines across the internet can contribute compute power and users can run workloads on those machines securely.
+Instead of relying only on centralized cloud infrastructure, ComputeMesh coordinates independent nodes into a compute mesh:
 
-Instead of relying only on centralized cloud infrastructure, ComputeMesh coordinates independent nodes into a compute mesh.
+- **Distributed compute network** — machines running a node agent contribute CPU/GPU resources.
+- **Containerized workloads** — user workloads run in Docker containers with resource limits.
+- **Peer-to-peer connectivity** — users connect directly to provider nodes for terminal access and web app routing.
+- **Compute marketplace** — users browse available nodes and start sessions.
+- **Job scheduling** — workloads are assigned to the most suitable node by resources, reliability and price.
+- **Provider earnings** — providers are paid for runtime and resource usage.
 
----
+<img width="236" height="742" alt="ComputeMesh architecture diagram" src="https://github.com/user-attachments/assets/f90c9a4d-a547-4e0e-a78a-2dce6878e940" />
 
-# Key Features
-
-## Distributed Compute Network
-Machines running the ComputeMesh node agent can contribute CPU/GPU resources to the network.
-
-## Containerized Workloads
-All user workloads run inside isolated Docker containers with strict resource limits.
-
-## Peer-to-Peer Connectivity
-Users connect directly to provider nodes for terminal access and web application routing.
-
-## Compute Marketplace
-Users can browse available compute resources and start sessions on selected nodes.
-
-## Job Scheduling
-A scheduler assigns workloads to the most suitable node based on resource availability, reliability, and price.
-
-## Provider Earnings
-Providers earn rewards based on compute runtime and resource usage.
+Planned container lifecycle: user starts a session → scheduler selects a node → node agent launches a container → user connects to the container terminal → workload runs → session ends → container is destroyed.
 
 ---
 
-# System Architecture
+## What is implemented
 
-<img width="236" height="742" alt="mermaid-diagram" src="https://github.com/user-attachments/assets/f90c9a4d-a547-4e0e-a78a-2dce6878e940" />
+| Area | Status in this repo |
+| --- | --- |
+| Auth (register, login, current user) with JWT + bcrypt | Implemented |
+| Provider registration (`providerName`, `location`, `publicIp`) | Implemented |
+| Node registration (GPU model/count, VRAM, CPU, RAM, disk, price per hour) | Implemented |
+| Node heartbeat (marks node online, updates available GPUs / running jobs) | Implemented |
+| Available-node listing (online nodes with free GPUs) | Implemented |
+| Job submission + scheduling | Implemented — picks the cheapest online node with enough free GPUs and reserves them |
+| `ComputeSession` model (image, ports, env, cost, websocket/SSH URLs) | Model only, no routes |
+| Node agent, Docker execution, P2P transport, terminal streaming, billing, reliability scoring, frontend | Planned |
 
----
+## Tech stack
 
-# Component Overview
+- Node.js 20, TypeScript
+- Express 5, `helmet`, `cors`, `morgan`
+- MongoDB via Mongoose
+- `jsonwebtoken`, `bcryptjs`
+- `ts-node-dev` for development
 
-## API Gateway
-Handles authentication, request validation, and routes API calls to internal services.
+## API
 
-## Scheduler Service
-Selects the most suitable node based on:
-- available CPU/GPU
-- memory
-- reliability score
-- pricing
+All routes are JSON. Protected routes expect `Authorization: Bearer <token>` (the token returned by `/auth/login`).
 
-## Session Manager
-Responsible for:
-- compute session lifecycle
-- container startup and termination
-- connection key generation
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| GET | `/health` | — | Health check |
+| POST | `/auth/register` | — | Body: `name`, `email`, `password` |
+| POST | `/auth/login` | — | Body: `email`, `password`; returns a JWT |
+| GET | `/auth/me` | Yes | Current user |
+| POST | `/providers/register` | Yes | Register the current user as a provider |
+| GET | `/providers/me` | Yes | Current user's provider profile |
+| POST | `/nodes/register` | Yes (provider) | Register a node; returns a generated `nodeId` |
+| POST | `/nodes/heartbeat` | — | Body: `nodeId`, `availableGPUs`, `runningJobs` |
+| GET | `/nodes/available` | — | Online nodes with free GPUs |
+| POST | `/jobs/submit` | Yes | Body: `dockerImage`, `command`, `requiredGPUs`, `requiredRAM`, `requiredCPU` |
 
-## Node Registry
-Maintains metadata about provider nodes including:
-- resources
-- availability
-- uptime
-- reliability score
+## Getting started
 
-## Node Agent
-Runs on provider machines and performs:
-- node registration
-- resource monitoring
-- container management
-- job execution
-- P2P communication
+### Prerequisites
 
----
+- Node.js 20+
+- A MongoDB instance
 
-# Container Lifecycle
+### Install and run
 
-1. User starts compute session
-2. Scheduler selects node
-3. Node agent launches Docker container
-4. User connects to container terminal
-5. Workload executes
-6. Session ends
-7. Container is destroyed
+```bash
+npm install
+cp .env.example .env   # then fill in the values
+npm run dev            # ts-node-dev with auto-reload
+```
 
----
+Production build:
 
-# Example Use Cases
+```bash
+npm run build          # tsc → dist/
+npm start              # node dist/server.js
+```
 
-- Machine learning model training
-- Distributed rendering
-- Development environments
-- Data processing workloads
-- Remote container execution
+The server listens on `PORT` (default `5000`).
 
----
+## Configuration
 
-# Tech Stack
+Environment variables (see `.env.example`):
 
-Backend
-- Node.js
-- Express / Fastify
-- MongoDB
-- Redis
+| Variable | Description |
+| --- | --- |
+| `PORT` | HTTP port (default `5000`) |
+| `MONGO_URI` | MongoDB connection string |
+| `JWT_SECRET` | Secret used to sign and verify JWTs. Set this in every environment — the code falls back to an insecure default if it is missing. |
+| `NODE_ENV` | Runtime environment |
 
-Compute Layer
-- Docker containers
+## Scripts
 
-Networking
-- P2P transport layer (Holepunch or WebRTC)
+| Script | Command |
+| --- | --- |
+| `npm run dev` | `ts-node-dev --respawn --transpile-only server.ts` |
+| `npm run build` | `tsc` |
+| `npm start` | `node dist/server.js` |
 
-Frontend
-- React
-- TailwindCSS
+No test script is defined.
 
----
+## Deployment
 
-# Resume Description
+- **AWS CodeBuild** — `buildspec.yml` installs dependencies and runs `npm run build` on Node.js 20.
+- **AWS CodeDeploy** — `appspec.yml` copies the build to the instance and runs the hooks in `scripts/` (`before_install.sh`, `after_install.sh`, `application_start.sh`, `application_stop.sh`), which install, build and run `dist/server.js` under PM2 as `computemesh-be`.
+- **Docker** — a `Dockerfile` (Node 20 Alpine, exposes `5000`) is included, but its `CMD` runs `index.js`, which does not exist; it needs updating (e.g. to build and run `dist/server.js`) before use (needs confirmation).
 
-ComputeMesh – Distributed Compute Platform
+## Project structure
 
-- Designed a peer-to-peer compute platform enabling users to run workloads on remote machines.
-- Built a node agent for resource discovery and containerized execution using Docker.
-- Implemented distributed job scheduling and node reliability scoring.
-- Developed P2P networking layer for terminal access and web application tunneling.
+```
+server.ts              Entry point: loads env, connects to MongoDB, starts Express
+src/app.ts             Express app, middleware and route mounting
+src/config/db.ts       Mongoose connection
+src/routes/            auth, providers, nodes, jobs
+src/controllers/       Request handlers
+src/services/          Business logic, incl. scheduler.service.ts
+src/models/            User, Provider, Node, Job, ComputeSession
+src/middlewares/       JWT auth and error handling
+scripts/               CodeDeploy lifecycle hooks
+architecture.md        Planned architecture checklist
+development-roadmap.md 3-month development roadmap
+```
 
----
+## License
 
-# Future Improvements
-
-- Multi-node distributed workloads
-- GPU cluster orchestration
-- WebRTC transport layer
-- Provider reputation system
-- Automated resource scaling
-
----
-
-# License
-
-MIT License
+The previous README stated MIT, while `package.json` declares ISC and there is no LICENSE file (needs confirmation).
